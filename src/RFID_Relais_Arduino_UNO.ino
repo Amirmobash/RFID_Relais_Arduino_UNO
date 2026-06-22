@@ -1,21 +1,3 @@
-/*
-  RFID Relais Steuerung mit Arduino UNO
-  Autor: Projektvorlage
-
-  Funktion:
-  - Erste gültige RFID-Karte: Relais 1 schaltet für 1 Sekunde.
-  - Zweiter gültiger RFID-Scan: Relais 2 schaltet für 1 Sekunde.
-  - Danach wieder Relais 1, dann Relais 2 usw.
-
-  Hardware:
-  - Arduino UNO
-  - RFID RC522
-  - 2-Kanal Relaismodul
-
-  Benötigte Bibliothek:
-  - MFRC522
-*/
-
 #include <SPI.h>
 #include <MFRC522.h>
 
