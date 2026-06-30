@@ -1,112 +1,144 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define SS_PIN 10
-#define RST_PIN 9
+const byte ssPin = 10;
+const byte rstPin = 9;
 
-#define RELAY1 7
-#define RELAY2 6
+const byte relayOnePin = 7;
+const byte relayTwoPin = 6;
 
-#define RELAY_ON LOW
-#define RELAY_OFF HIGH
+const byte relayOn = LOW;
+const byte relayOff = HIGH;
 
-MFRC522 rfid(SS_PIN, RST_PIN);
+MFRC522 rfid(ssPin, rstPin);
 
-bool nextRelayIsOne = true;
+bool useRelayOneNext = true;
+unsigned long lastCardTime = 0;
 
-byte card1[4] = {0x33, 0xF8, 0x76, 0xB7};
-byte card2[4] = {0x0B, 0x38, 0x01, 0xCE};
-
-void relaysOff() {
-  digitalWrite(RELAY1, RELAY_OFF);
-  digitalWrite(RELAY2, RELAY_OFF);
-}
-
-bool checkCard(byte allowedCard[4]) {
-  for (byte i = 0; i < 4; i++) {
-    if (rfid.uid.uidByte[i] != allowedCard[i]) return false;
-  }
-  return true;
-}
-
-bool isAuthorizedCard() {
-  if (rfid.uid.size != 4) return false;
-  if (checkCard(card1)) return true;
-  if (checkCard(card2)) return true;
-  return false;
-}
-
-void printCardUID() {
-  Serial.print("Karten-UID: ");
-  for (byte i = 0; i < rfid.uid.size; i++) {
-    if (rfid.uid.uidByte[i] < 0x10) Serial.print("0");
-    Serial.print(rfid.uid.uidByte[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
-}
-
-void activateRelay(byte relayPin) {
-  relaysOff();
-
-  digitalWrite(relayPin, RELAY_ON);
-  delay(1000);
-  digitalWrite(relayPin, RELAY_OFF);
-
-  relaysOff();
-}
+byte firstCard[4] = {0x33, 0xF8, 0x76, 0xB7};
+byte secondCard[4] = {0x0B, 0x38, 0x01, 0xCE};
 
 void setup() {
-  // خیلی مهم: قبل از OUTPUT کردن، وضعیت OFF را بنویس
-  digitalWrite(RELAY1, RELAY_OFF);
-  digitalWrite(RELAY2, RELAY_OFF);
+  digitalWrite(relayOnePin, relayOff);
+  digitalWrite(relayTwoPin, relayOff);
 
-  pinMode(RELAY1, OUTPUT);
-  pinMode(RELAY2, OUTPUT);
+  pinMode(relayOnePin, OUTPUT);
+  pinMode(relayTwoPin, OUTPUT);
 
-  relaysOff();
+  turnRelaysOff();
 
   Serial.begin(9600);
 
   SPI.begin();
   rfid.PCD_Init();
 
-  relaysOff();
+  turnRelaysOff();
 
-  Serial.println("RFID Relais Steuerung gestartet");
-  Serial.println("Relais sind AUS");
+  Serial.println("RFID relay system started");
+  Serial.println("Relays are OFF");
+  Serial.println("Scan an authorized card");
 }
 
 void loop() {
-  relaysOff();  // حالت پیش‌فرض امن
+  turnRelaysOff();
 
-  if (!rfid.PICC_IsNewCardPresent()) return;
-  if (!rfid.PICC_ReadCardSerial()) return;
-
-  printCardUID();
-
-  if (!isAuthorizedCard()) {
-    Serial.println("Zugriff verweigert");
-    rfid.PICC_HaltA();
-    rfid.PCD_StopCrypto1();
-    delay(1000);
+  if (!rfid.PICC_IsNewCardPresent()) {
     return;
   }
 
-  Serial.println("Zugriff erlaubt");
-
-  if (nextRelayIsOne) {
-    Serial.println("Relais 1 fuer 1 Sekunde aktiv");
-    activateRelay(RELAY1);
-    nextRelayIsOne = false;
-  } else {
-    Serial.println("Relais 2 fuer 1 Sekunde aktiv");
-    activateRelay(RELAY2);
-    nextRelayIsOne = true;
+  if (!rfid.PICC_ReadCardSerial()) {
+    return;
   }
 
+  if (millis() - lastCardTime < 1500) {
+    stopCard();
+    return;
+  }
+
+  lastCardTime = millis();
+
+  printCardUid();
+
+  if (!cardIsAllowed()) {
+    Serial.println("Access denied");
+    stopCard();
+    return;
+  }
+
+  Serial.println("Access allowed");
+
+  if (useRelayOneNext) {
+    Serial.println("Relay 1 is active for 1 second");
+    pulseRelay(relayOnePin);
+    useRelayOneNext = false;
+  } else {
+    Serial.println("Relay 2 is active for 1 second");
+    pulseRelay(relayTwoPin);
+    useRelayOneNext = true;
+  }
+
+  stopCard();
+}
+
+void turnRelaysOff() {
+  digitalWrite(relayOnePin, relayOff);
+  digitalWrite(relayTwoPin, relayOff);
+}
+
+void pulseRelay(byte relayPin) {
+  turnRelaysOff();
+
+  digitalWrite(relayPin, relayOn);
+  delay(1000);
+
+  digitalWrite(relayPin, relayOff);
+  delay(100);
+
+  turnRelaysOff();
+}
+
+bool cardIsAllowed() {
+  if (rfid.uid.size != 4) {
+    return false;
+  }
+
+  if (cardMatches(firstCard)) {
+    return true;
+  }
+
+  if (cardMatches(secondCard)) {
+    return true;
+  }
+
+  return false;
+}
+
+bool cardMatches(byte allowedCard[4]) {
+  for (byte i = 0; i < 4; i++) {
+    if (rfid.uid.uidByte[i] != allowedCard[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void printCardUid() {
+  Serial.print("Card UID: ");
+
+  for (byte i = 0; i < rfid.uid.size; i++) {
+    if (rfid.uid.uidByte[i] < 0x10) {
+      Serial.print("0");
+    }
+
+    Serial.print(rfid.uid.uidByte[i], HEX);
+    Serial.print(" ");
+  }
+
+  Serial.println();
+}
+
+void stopCard() {
   rfid.PICC_HaltA();
   rfid.PCD_StopCrypto1();
-
-  delay(1000);
 }
