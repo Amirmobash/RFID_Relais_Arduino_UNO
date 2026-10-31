@@ -50,3 +50,7 @@ Edit `firstCard` and `secondCard` in the actual source; the old `card1`/`checkCa
 No physical testing, new hardware photographs or measured electrical/optical
 performance is claimed. Retain the author attribution and existing license/source
 notices when reusing the project.
+
+## License
+
+See the existing [MIT License](LICENSE).
