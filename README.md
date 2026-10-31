@@ -1,119 +1,56 @@
-# RFID Relais Steuerung mit Arduino UNO
+# RFID relay controller for Arduino Uno
 
-Dieses Projekt steuert zwei Relais mit einem Arduino UNO und einem RFID-RC522-Modul.
+An MFRC522 reader accepts either of the two configured four-byte UIDs. Authorized scans alternate between relay 1 and relay 2, with a one-second active-low pulse and a 1.5-second scan guard. Author: **Amir Mobasheraghdam**.
 
-## Funktion
+## Reproducible build
 
-- Beim ersten gültigen RFID-Scan wird **Relais 1** für 1 Sekunde aktiviert.
-- Beim zweiten gültigen RFID-Scan wird **Relais 2** für 1 Sekunde aktiviert.
-- Danach beginnt die Reihenfolge wieder von vorne.
-- Nur gespeicherte RFID-Karten dürfen die Relais schalten.
+Install Python 3 and **Arduino CLI 1.3.1**, then run from this repository:
 
-## Verwendete Hardware
-
-- Arduino UNO
-- RFID-Modul RC522
-- 2-Kanal Relaismodul 5V
-- RFID-Karten oder RFID-Tags
-- Jumper-Kabel
-- Externe Spannungsversorgung für das Schloss, falls benötigt
-
-## Benötigte Arduino-Bibliothek
-
-Installiere in der Arduino IDE:
-
-```text
-MFRC522 by GithubCommunity
+```bash
+python3 tools/check_firmware.py --install
 ```
 
-Pfad:
+The helper installs `arduino:avr@1.8.6` and `MFRC522@1.4.12`. It compiles these alternatives
+separately in temporary folders, without uploading or rewriting the originals:
 
-```text
-Arduino IDE -> Sketch -> Include Library -> Manage Libraries -> MFRC522 suchen -> Installieren
-```
+- `src/RFID_Relais_Arduino_UNO.ino`
 
-## Anschlussplan
+Build target: `arduino:avr:uno`. Once dependencies are installed, omit `--install`
+to build offline. `--jobs 2` is the default. Set `ARDUINO_CLI` to a CLI executable
+or wrapper when using a custom Arduino configuration. Exact build inputs are in
+[`tools/firmware.json`](tools/firmware.json). Library dependencies are listed
+explicitly and installed with `--no-deps` so transitive updates cannot silently
+replace the pinned versions. These are tested build versions, not a claim that
+all other core/library versions are incompatible.
 
-### RFID RC522 an Arduino UNO
+The GitHub Actions workflow repeats the firmware checks on pushes and pull
+requests. Compilation validates software/toolchain compatibility; it does not
+establish hardware safety or successful physical operation.
 
-| RC522 Pin | Arduino UNO |
-|----------|-------------|
-| SDA      | D10         |
-| SCK      | D13         |
-| MOSI     | D11         |
-| MISO     | D12         |
-| RST      | D9          |
-| 3.3V     | 3.3V        |
-| GND      | GND         |
+## Signal assignments
 
-**Wichtig:** Das RC522-Modul muss mit **3.3V** betrieben werden, nicht mit 5V.
+![Source-derived pin map](docs/wiring.svg)
 
-### Relaismodul an Arduino UNO
+| Signal | Board pin |
+| --- | --- |
+| MFRC522 SS / SDA | D10 |
+| MFRC522 RST | D9 |
+| MFRC522 SCK | D13 |
+| MFRC522 MOSI | D11 |
+| MFRC522 MISO | D12 |
+| Relay 1 input | D7 |
+| Relay 2 input | D6 |
 
-| Relaismodul | Arduino UNO |
-|------------|-------------|
-| IN1        | D7          |
-| IN2        | D6          |
-| VCC        | 5V          |
-| GND        | GND         |
+## Operation and validation limits
 
-## RFID-Karten im Code
+Use a 3.3 V supply for the RC522 and verify suitable level adaptation from the Uno outputs. The relay inputs are active LOW. Keep load power separate from logic power and verify the relay module interface. UID matching is identification, not cryptographic authentication.
 
-Aktuell sind diese Karten freigeschaltet:
+Edit `firstCard` and `secondCard` in the actual source; the old `card1`/`checkCard` examples did not match the sketch. Serial output uses **9600 baud**.
 
-```cpp
-33 F8 76 B7
-0B 38 01 CE
-```
+No physical testing, new hardware photographs or measured electrical/optical
+performance is claimed. Retain the author attribution and existing license/source
+notices when reusing the project.
 
-Im Code stehen sie so:
+## License
 
-```cpp
-byte card1[4] = {0x33, 0xF8, 0x76, 0xB7};
-byte card2[4] = {0x0B, 0x38, 0x01, 0xCE};
-```
-
-## Weitere Karte hinzufügen
-
-1. UID der Karte mit dem Serial Monitor auslesen.
-2. Neue Karte im Code hinzufügen, zum Beispiel:
-
-```cpp
-byte card3[4] = {0xAA, 0xBB, 0xCC, 0xDD};
-```
-
-3. In der Funktion `isAuthorizedCard()` ergänzen:
-
-```cpp
-if (checkCard(card3)) return true;
-```
-
-## Relais-Logik
-
-Viele Relaismodule sind **LOW-aktiv**. Deshalb ist im Code eingestellt:
-
-```cpp
-#define RELAY_ON LOW
-#define RELAY_OFF HIGH
-```
-
-Falls dein Relais genau andersherum funktioniert, ändere es zu:
-
-```cpp
-#define RELAY_ON HIGH
-#define RELAY_OFF LOW
-```
-
-## Projekt starten
-
-1. Arduino IDE öffnen.
-2. Datei `src/RFID_Relais_Arduino_UNO.ino` öffnen.
-3. Board auswählen: **Arduino UNO**.
-4. Port auswählen, zum Beispiel **COM8**.
-5. Code hochladen.
-6. Serial Monitor mit **9600 Baud** öffnen.
-7. Karte scannen.
-
-## Sicherheitshinweis
-
-Bei elektrischen Türschlössern oder höheren Spannungen muss eine passende externe Stromversorgung verwendet werden. Keine hohen Lasten direkt über den Arduino betreiben.
+See the existing [MIT License](LICENSE).
