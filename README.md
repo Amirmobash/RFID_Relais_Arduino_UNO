@@ -1,5 +1,11 @@
 # RFID relay controller for Arduino Uno
 
+
+<p align="center"><img src="docs/images/arduino-uno-mfrc522-two-relay-controller.svg" alt="Arduino Uno MFRC522 RFID reader and two-relay access controller schematic" width="960"/></p>
+
+<sub>Illustrative overview; not a verified device photograph, measured CAD export, or tested safety design.</sub>
+
+
 An MFRC522 reader accepts either of the two configured four-byte UIDs. Authorized scans alternate between relay 1 and relay 2, with a one-second active-low pulse and a 1.5-second scan guard. Author: **Amir Mobasheraghdam**.
 
 ## Reproducible build
